@@ -11,9 +11,17 @@ import (
     "path"
     "fmt"
     "path/filepath"
+    "io/ioutil"
+    "log"
 )
 
-func TestFileHandler(t *testing.T) {
+func checkErr(err error) {
+    if err != nil {
+        log.Fatal(err)
+    }
+}
+
+func TestFileHandlerUpload(t *testing.T) {
     basePath := "/tmp/upload_test"
     subPath := "/myfiles"
     filename := "test-image.png"
@@ -55,9 +63,39 @@ func TestFileHandler(t *testing.T) {
         t.Errorf("Didn't receive a successful status", http.StatusOK)
     }
 
-    fullPath := fmt.Sprintf("%v/%v/%v", basePath, subPath, filename)
-    _, err = os.Open(path.Clean(fullPath))
+    fullPath := path.Clean(fmt.Sprintf("%v/%v/%v", basePath, subPath, filename))
+    _, err = os.Open(fullPath)
     if err != nil {
         t.Errorf("File not uploaded", err)
+    }
+
+    // cleanup
+    err = os.Remove(fullPath)
+    if err != nil {
+        panic(err)
+    }
+}
+
+func TestFileHandlerGet(t *testing.T) {
+    basePath := "/tmp/upload_test"
+    subPath := "/myfiles"
+    filename := "test-image.png"
+
+    data, err := ioutil.ReadFile(filename)
+    log.Println(filename)
+    checkErr(err)
+    out := path.Clean(fmt.Sprintf("%v/%v/%v", basePath, subPath, filename))
+    err = ioutil.WriteFile(out, data, 0644)
+    log.Println(out)
+    checkErr(err)
+
+    url := fmt.Sprintf("http://localhost:9898/file?path=%v&filename=%v", subPath, filename)
+    handler := FileHandler(basePath)
+    req, _ := http.NewRequest("GET", url, nil)
+
+    w := httptest.NewRecorder()
+    handler.ServeHTTP(w, req)
+    if w.Code != http.StatusOK {
+        t.Errorf("Didn't receive a successful status", http.StatusOK)
     }
 }

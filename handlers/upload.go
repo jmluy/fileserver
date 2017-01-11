@@ -41,7 +41,7 @@ func uploadFile(w http.ResponseWriter, r *http.Request) {
     }
 
     defer file.Close()
-    fmt.Println("Uploaded file info: ", handler.Header)
+    log.Println("Uploaded file info: ", handler.Header)
     fileWithPath := fmt.Sprintf("%v/%v", filepath.ToSlash(path), handler.Filename)
     localFilename := fmt.Sprintf(baseDirectory + "%v", filepath.Clean(fileWithPath))
     err = os.MkdirAll(filepath.Dir(localFilename), os.ModePerm)
@@ -55,11 +55,41 @@ func uploadFile(w http.ResponseWriter, r *http.Request) {
     w.Write([]byte("Successfully uploaded"))
 }
 
+func getFile(w http.ResponseWriter, r *http.Request) {
+    path := r.URL.Query().Get("path")
+    if path == "" {
+        http.Error(w, "No path specified", http.StatusBadRequest)
+        return
+    }
+
+    filename := r.URL.Query().Get("filename")
+    if filename == "" {
+        http.Error(w, "No filename specified", http.StatusBadRequest)
+        return
+    }
+
+    fileWithPath := fmt.Sprintf("%v/%v", filepath.ToSlash(path), filename)
+    localFilename := fmt.Sprintf(baseDirectory + "/%v", filepath.Clean(fileWithPath))
+    if _, err := os.Stat(localFilename); err == nil {
+        log.Println("Downloading file info: ", fileWithPath)
+        f, err := os.OpenFile(localFilename, os.O_RDONLY, 0666)
+        checkError(err)
+        defer f.Close()
+
+        io.Copy(w, f)
+    } else {
+        log.Println("File not found")
+        http.Error(w, "File not found " + fileWithPath, http.StatusBadRequest)
+    }
+}
+
 func FileHandler(basePath string) http.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request) {
         baseDirectory = basePath
 
-        if r.Method == "POST" || r.Method == "PUT" {
+        if r.Method == "GET" {
+            getFile(w, r)
+        } else if r.Method == "POST" || r.Method == "PUT" {
             uploadFile(w, r)
         } else {
             http.Error(w, "Not supported", http.StatusMethodNotAllowed)
