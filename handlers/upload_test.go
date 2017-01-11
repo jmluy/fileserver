@@ -28,27 +28,19 @@ func TestFileHandlerUpload(t *testing.T) {
 
     // create test directory in /tmp
     err := os.MkdirAll(filepath.Dir(basePath + subPath), os.ModePerm)
-    if err != nil {
-        panic(err)
-    }
+    checkErr(err)
 
     // open test file for upload
     file, err := os.Open(filename)
-    if err != nil {
-        panic(err)
-    }
+    checkErr(err)
     defer file.Close()
 
     bodyBuf := bytes.Buffer{}
     bodyWriter := multipart.NewWriter(&bodyBuf)
     fileWriter, err := bodyWriter.CreateFormFile("uploadfile", filename)
-    if err != nil {
-        panic(err)
-    }
+    checkErr(err)
     _, err = io.Copy(fileWriter, file)
-    if err != nil {
-        panic(err)
-    }
+    checkErr(err)
     bodyWriter.WriteField("path", subPath)
 
     bodyWriter.Close()
@@ -71,9 +63,7 @@ func TestFileHandlerUpload(t *testing.T) {
 
     // cleanup
     err = os.Remove(fullPath)
-    if err != nil {
-        panic(err)
-    }
+    checkErr(err)
 }
 
 func TestFileHandlerGet(t *testing.T) {
@@ -82,11 +72,9 @@ func TestFileHandlerGet(t *testing.T) {
     filename := "test-image.png"
 
     data, err := ioutil.ReadFile(filename)
-    log.Println(filename)
     checkErr(err)
     out := path.Clean(fmt.Sprintf("%v/%v/%v", basePath, subPath, filename))
     err = ioutil.WriteFile(out, data, 0644)
-    log.Println(out)
     checkErr(err)
 
     url := fmt.Sprintf("http://localhost:9898/file?path=%v&filename=%v", subPath, filename)
